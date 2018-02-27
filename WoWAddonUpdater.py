@@ -132,7 +132,9 @@ class AddonUpdater:
     def update(self):
         with open(self.ADDON_LIST_FILE, "r") as fin:
             for line in fin:
-                line = line.rstrip('\n')
+                line = line.strip()
+                if not len(line):
+                    continue
                 currentVersion = SiteHandler.getCurrentVersion(line)
                 installedVersion = self.getInstalledVersion(line)
                 addonName = line.split('/').pop()

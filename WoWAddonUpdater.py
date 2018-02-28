@@ -14,11 +14,6 @@ def confirmExit():
     input('\nPress the Enter key to exit')
     exit(0)
 
-def cleanupExit():
-    # Do stuff to stop update thread.
-    exit(0)
-
-
 
 class AddonUpdater:
     def __init__(self):
@@ -39,6 +34,17 @@ class AddonUpdater:
             print('Failed to parse configuration file. Are you sure it is formatted correctly?\n')
             confirmExit()
 
+        # Add "Use GUI = true" to the config file if the option is missing.
+        try:
+            useguivalue = config['WOW ADDON UPDATER']['Use GUI']
+            if str.lower(useguivalue) in ["yes", "true", "1"]:
+                self.USE_GUI = True
+        except KeyError:
+            self.USE_GUI = True
+            config['WOW ADDON UPDATER']['Use GUI'] = "yes"
+            with open('config.ini', 'w') as configfile:
+                config.write(configfile)
+
         if not isfile(self.ADDON_LIST_FILE):
             print('Failed to read addon list file. Are you sure the file exists?\n')
             confirmExit()
@@ -48,7 +54,8 @@ class AddonUpdater:
                 newInstalledVers = configparser.ConfigParser()
                 newInstalledVers['Installed Versions'] = {}
                 newInstalledVers.write(newInstalledVersFile)
-        self.initgui()
+        if self.USE_GUI:
+            self.initgui()
         return
 
     def initgui(self):
@@ -85,14 +92,15 @@ class AddonUpdater:
         self.root = root
         self.output_text = output_text
         self.progressbar = progressbar
+        self.FINISHEDUPDATING = False
 
-        self.cancelbutton = Button(mainframe, text="Cancel", command=cleanupExit)
+        self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating)
         self.cancelbutton.grid(column=0, row=4)
         self.startbutton = Button(mainframe, text="Start", command=self.startUpdating)
         self.startbutton.grid(column=2, row=4)
 
         for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
-        self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.\n')
+        self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')
         self.updateGUI()
         return
 
@@ -100,6 +108,7 @@ class AddonUpdater:
         try:
             text = self.textqueue.get_nowait()
             self.output_text.insert(END, '\n' + text)
+            self.output_text.see(END)
         except queue.Empty:
             pass
         try:
@@ -107,16 +116,21 @@ class AddonUpdater:
             self.progressbar.step()
         except queue.Empty:
             pass
+        if self.FINISHEDUPDATING:
+            self.finishUpdating()
         self.root.after(200, self.updateGUI)
         return
 
     def addtext(self, text):
-        self.textqueue.put(str(text))
-        print(str(text))
+        if self.USE_GUI:
+            self.textqueue.put(str(text))
+        else:
+            print(str(text))
         return
 
     def addprogress(self):
-        self.progressqueue.put("step")
+        if self.USE_GUI:
+            self.progressqueue.put("step")
         return
 
     def startUpdating(self):
@@ -128,6 +142,10 @@ class AddonUpdater:
     def finishUpdating(self):
         self.startbutton['state'] = NORMAL
         return
+
+    def abortUpdating():
+        # Do stuff to stop update thread.
+        pass
 
     def update(self):
         # Main process (yes I formatted the project badly)
@@ -144,7 +162,7 @@ class AddonUpdater:
                 current_node.append(line.split("/")[-1])
                 current_node.append(SiteHandler.getCurrentVersion(line))
                 installedVersion = self.getInstalledVersion(line)
-                addonName = line.split('/').pop()
+                addonName = line.split("/")[-1]
                 self.addprogress()
                 if not currentVersion == installedVersion:
                     self.addtext('Installing/updating addon: ' + addonName + ' to version: ' + currentVersion)
@@ -157,13 +175,16 @@ class AddonUpdater:
                     self.addtext('Up to date: ' + addonName + ' version ' + currentVersion)
                     current_node.append("Up to date")
                 uberlist.append(current_node)
+        if self.USE_GUI:
+            self.addtext('\n' + 'All done!')
+            self.FINISHEDUPDATING = True
+            return
         if self.AUTO_CLOSE == 'False':
             col_width = max(len(word) for row in uberlist for word in row) + 2  # padding
             print("".join(word.ljust(col_width) for word in ("Name","Iversion","Cversion")))
             for row in uberlist:
                 print("".join(word.ljust(col_width) for word in row), end='\n')
-        self.addtext('\n' + 'All done!')
-        return
+            confirmExit()
 
     def getAddon(self, ziploc):
         if ziploc == '':
@@ -202,7 +223,10 @@ class AddonUpdater:
 
 def main():
     addonupdater = AddonUpdater()
-    addonupdater.root.mainloop()
+    if addonupdater.USE_GUI:
+        addonupdater.root.mainloop()
+    else:
+        addonupdater.update()
     return
 
 

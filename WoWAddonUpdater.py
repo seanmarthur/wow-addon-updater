@@ -143,7 +143,7 @@ class AddonUpdater:
         self.startbutton['state'] = NORMAL
         return
 
-    def abortUpdating():
+    def abortUpdating(self):
         # Do stuff to stop update thread.
         pass
 

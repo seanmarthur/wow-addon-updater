@@ -135,7 +135,7 @@ class AddonUpdater:
         with open(self.ADDON_LIST_FILE, "r") as fin:
             for line in fin:
                 current_node = []
-                line = line.rstrip('\n')
+                line = line.strip()
                 if not line or line.startswith('#'):
                     continue
                 currentVersion = SiteHandler.getCurrentVersion(line)

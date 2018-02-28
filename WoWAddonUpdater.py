@@ -39,6 +39,8 @@ class AddonUpdater:
             useguivalue = config['WOW ADDON UPDATER']['Use GUI']
             if str.lower(useguivalue) in ["yes", "true", "1"]:
                 self.USE_GUI = True
+            else:
+                self.USE_GUI = False
         except KeyError:
             self.USE_GUI = True
             config['WOW ADDON UPDATER']['Use GUI'] = "yes"

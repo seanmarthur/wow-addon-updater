@@ -66,27 +66,29 @@ class AddonUpdater:
         root = Tk()
         root.title("WoW Addon Updater")
 
-        mainframe = Frame(root, padding="3 3 3 3")
-        mainframe.grid(sticky=(N, W, E, S))
+        root.minsize(290, 214)
         root.rowconfigure(0, weight=1)
         root.columnconfigure(0, weight=1)
+        mainframe = Frame(root, padding="3 3 3 3")
+        mainframe.grid(sticky=(N, W, E, S))
 
-        mainframe.rowconfigure(0, weight=1)
+        mainframe.rowconfigure(0, weight=0)
         mainframe.columnconfigure(0, weight=1)
         mainframe.rowconfigure(1, weight=1)
         mainframe.columnconfigure(1, weight=1)
-        mainframe.rowconfigure(2, weight=1)
+        mainframe.rowconfigure(2, weight=0)
         mainframe.columnconfigure(2, weight=1)
+        mainframe.rowconfigure(3, weight=0)
 
         Sizegrip(root).grid(row=3, sticky=(S,E))
 
         Label(mainframe, text="WoW Addon Updater", font=("Helvetica", 20)).grid(column=0, row=0, sticky=(N), columnspan=3)
 
         output_text = scrolledtext.ScrolledText(mainframe, width=110, height=20, wrap=WORD)
-        output_text.grid(column=0, row=2, sticky=(N,S,E,W), columnspan=3)
+        output_text.grid(column=0, row=1, sticky=(N,S,E,W), columnspan=3)
 
         progressbar = Progressbar(mainframe, orient="horizontal", mode="determinate")
-        progressbar.grid(column=0, row=3, sticky=(E,W), columnspan=3)
+        progressbar.grid(column=0, row=2, sticky=(E,W), columnspan=3)
         with open(self.ADDON_LIST_FILE, "r") as fin:
             length = len(fin.read().splitlines())
             progressbar.configure(value=0, maximum = length)
@@ -97,9 +99,9 @@ class AddonUpdater:
         self.FINISHEDUPDATING = False
 
         self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating)
-        self.cancelbutton.grid(column=0, row=4)
+        self.cancelbutton.grid(column=0, row=3)
         self.startbutton = Button(mainframe, text="Start", command=self.startUpdating)
-        self.startbutton.grid(column=2, row=4)
+        self.startbutton.grid(column=2, row=3)
 
         for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
         self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')

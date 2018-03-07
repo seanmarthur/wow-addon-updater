@@ -80,7 +80,7 @@ class AddonUpdater:
         mainframe.columnconfigure(2, weight=1)
         mainframe.rowconfigure(3, weight=0)
 
-        Sizegrip(root).grid(row=3, sticky=(S,E))
+        Sizegrip(root).grid(row=0, sticky=(S,E))
 
         Label(mainframe, text="WoW Addon Updater", font=("Helvetica", 20)).grid(column=0, row=0, sticky=(N), columnspan=3)
 

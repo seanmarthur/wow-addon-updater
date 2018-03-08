@@ -1,6 +1,7 @@
 import zipfile, configparser
 from io import *
-from os.path import isfile
+from os.path import isfile, dirname, join
+from os import chdir
 import SiteHandler
 import packages.requests as requests
 from tkinter import *
@@ -18,12 +19,18 @@ def confirmExit():
 class AddonUpdater:
     def __init__(self):
         # Read config file
-        if not isfile('config.ini'):
+        config = configparser.ConfigParser()
+        configFile = 'config.ini'
+
+        if isfile(configFile):
+            config.read(configFile)
+        elif isfile(join(dirname(__file__), configFile)):
+            # Couldn't find configFile in the current directory, but found it in the script's directory.
+            chdir(dirname(__file__))
+            config.read(configFile)
+        else:
             print('Failed to read configuration file. Are you sure there is a file called "config.ini"?\n')
             confirmExit()
-
-        config = configparser.ConfigParser()
-        config.read('config.ini')
 
         try:
             self.WOW_ADDON_LOCATION = config['WOW ADDON UPDATER']['WoW Addon Location']
@@ -44,8 +51,8 @@ class AddonUpdater:
         except KeyError:
             self.USE_GUI = True
             config['WOW ADDON UPDATER']['Use GUI'] = "yes"
-            with open('config.ini', 'w') as configfile:
-                config.write(configfile)
+            with open(configFile, 'w') as file:
+                config.write(file)
 
         if not isfile(self.ADDON_LIST_FILE):
             print('Failed to read addon list file. Are you sure the file exists?\n')

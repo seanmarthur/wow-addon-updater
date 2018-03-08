@@ -44,15 +44,13 @@ class AddonUpdater:
         # Add "Use GUI = true" to the config file if the option is missing.
         try:
             useguivalue = config['WOW ADDON UPDATER']['Use GUI']
-            if str.lower(useguivalue) in ["yes", "true", "1"]:
+            if str.lower(useguivalue) in ["yes", "true", "1", "on"]:
                 self.USE_GUI = True
             else:
                 self.USE_GUI = False
         except KeyError:
             self.USE_GUI = True
-            config['WOW ADDON UPDATER']['Use GUI'] = "yes"
-            with open(configFile, 'w') as file:
-                config.write(file)
+            config['WOW ADDON UPDATER']['Use GUI'] = "True"
 
         if not isfile(self.ADDON_LIST_FILE):
             print('Failed to read addon list file. Are you sure the file exists?\n')

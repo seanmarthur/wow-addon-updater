@@ -183,6 +183,7 @@ class AddonUpdater:
             if self.updatethread.is_alive():
                 self.ABORT.set()
                 self.addText("Trying to cancel...")
+                self.cancelbutton['state'] = DISABLED
             else:
                 self.addText("Update isn't running.")
         except AttributeError:

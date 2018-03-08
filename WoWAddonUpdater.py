@@ -168,6 +168,8 @@ class AddonUpdater:
         # Using the queue won't work because we're not refreshing any more.
         self.output_text.insert(END, '\n' + 'Shutting down.')
         self.output_text.see(END)
+        # Refresh the GUI to show the above changes.
+        self.root.update_idletasks()
         try:
             if self.updatethread.is_alive():
                 # The update thread is running, so set the ABORT flag and wait.

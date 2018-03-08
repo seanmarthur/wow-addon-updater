@@ -7,7 +7,7 @@ from tkinter import *
 from tkinter import scrolledtext
 from tkinter.ttk import *
 import queue
-from threading import Thread
+import threading
 
 
 def confirmExit():
@@ -57,10 +57,10 @@ class AddonUpdater:
                 newInstalledVers['Installed Versions'] = {}
                 newInstalledVers.write(newInstalledVersFile)
         if self.USE_GUI:
-            self.initgui()
-        return
+            self.initGUI()
 
-    def initgui(self):
+    def initGUI(self):
+        # We don't need any of this stuff if we're not running the GUI.
         self.textqueue = queue.Queue()
         self.progressqueue = queue.Queue()
         root = Tk()
@@ -90,15 +90,20 @@ class AddonUpdater:
         progressbar = Progressbar(mainframe, orient="horizontal", mode="determinate")
         progressbar.grid(column=0, row=2, sticky=(E,W), columnspan=3)
         with open(self.ADDON_LIST_FILE, "r") as fin:
-            length = len(fin.read().splitlines())
+            length = 0
+            for line in fin:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    length += 1
             progressbar.configure(value=0, maximum = length)
 
         self.root = root
         self.output_text = output_text
         self.progressbar = progressbar
-        self.FINISHEDUPDATING = False
+        self.ABORT = threading.Event()
+        root.protocol("WM_DELETE_WINDOW", self.shutdownGUI)
 
-        self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating)
+        self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating, state=DISABLED)
         self.cancelbutton.grid(column=0, row=3)
         self.startbutton = Button(mainframe, text="Start", command=self.startUpdating)
         self.startbutton.grid(column=2, row=3)
@@ -106,9 +111,9 @@ class AddonUpdater:
         for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
         self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')
         self.updateGUI()
-        return
 
     def updateGUI(self):
+        # GUI refresh loop.
         try:
             text = self.textqueue.get_nowait()
             self.output_text.insert(END, '\n' + text)
@@ -120,46 +125,84 @@ class AddonUpdater:
             self.progressbar.step()
         except queue.Empty:
             pass
-        if self.FINISHEDUPDATING:
-            self.finishUpdating()
+        try:
+            if not self.updatethread.is_alive():
+                self.finishUpdating()
+                # updatethread is dead and we've cleaned up, so wipe it.
+                self.updatethread = None
+        except AttributeError:
+            pass
         self.root.after(200, self.updateGUI)
-        return
 
-    def addtext(self, text):
+    def addText(self, text):
+        # Put output in the queue for the GUI if we're using the GUI.
+        # updateGUI() picks it up from the queue and adds it to the text box.
+        # Threads suck. Only the GUI thread can touch GUI controls.
         if self.USE_GUI:
             self.textqueue.put(str(text))
         else:
             print(str(text))
-        return
 
-    def addprogress(self):
+    def addProgress(self):
         if self.USE_GUI:
             self.progressqueue.put("step")
-        return
 
     def startUpdating(self):
         self.startbutton['state'] = DISABLED
-        self.updatethread = Thread(target=self.update)
+        self.cancelbutton['state'] = NORMAL
+        self.ABORT.clear()
+        self.updatethread = threading.Thread(target=self.update)
         self.updatethread.start()
-        return
 
     def finishUpdating(self):
+        # Clean up if update thread is dead.
         self.startbutton['state'] = NORMAL
-        return
+        self.cancelbutton['state'] = DISABLED
+        self.progressbar.configure(value=0)
+
+    def shutdownGUI(self):
+        # No doing other things while we're shutting down
+        self.startbutton['state'] = DISABLED
+        self.cancelbutton['state'] = DISABLED
+        # This should only be called from the GUI thread, so we can touch the text box directly.
+        # Using the queue won't work because we're not refreshing any more.
+        self.output_text.insert(END, '\n' + 'Shutting down.')
+        self.output_text.see(END)
+        try:
+            if self.updatethread.is_alive():
+                # The update thread is running, so set the ABORT flag and wait.
+                self.ABORT.set()
+                self.updatethread.join()
+        except AttributeError:
+            # Update thread doesn't exist, so, continuing.
+            pass
+        exit()
 
     def abortUpdating(self):
-        # Do stuff to stop update thread.
-        pass
+        try:
+            if self.updatethread.is_alive():
+                self.ABORT.set()
+                self.addText("Trying to cancel...")
+            else:
+                self.addText("Update isn't running.")
+        except AttributeError:
+            self.addText("Update doesn't seem to be running.")
 
     def update(self):
         # Main process (yes I formatted the project badly)
         uberlist = []
         with open(self.ADDON_LIST_FILE, "r") as fin:
+            if self.USE_GUI:
+                self.addText('Checking for updates.' + '\n')
             for line in fin:
                 current_node = []
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
+                if self.USE_GUI and self.ABORT.is_set():
+                    # The GUI thread has asked the update thread to stop.
+                    self.addText("Cancelled.")
+                    return
                 currentVersion = SiteHandler.getCurrentVersion(line)
                 if currentVersion is None:
                     currentVersion = 'Not Available'
@@ -167,21 +210,24 @@ class AddonUpdater:
                 current_node.append(SiteHandler.getCurrentVersion(line))
                 installedVersion = self.getInstalledVersion(line)
                 addonName = line.split("/")[-1]
-                self.addprogress()
+                self.addProgress()
+                if self.USE_GUI and self.ABORT.is_set():
+                    # The GUI thread has asked the update thread to stop.
+                    self.addText("Cancelled.")
+                    return
                 if not currentVersion == installedVersion:
-                    self.addtext('Installing/updating addon: ' + addonName + ' to version: ' + currentVersion)
+                    self.addText('Installing/updating addon: ' + addonName + ' to version: ' + currentVersion)
                     ziploc = SiteHandler.findZiploc(line)
                     self.getAddon(ziploc)
                     current_node.append(self.getInstalledVersion(line))
                     if currentVersion is not '':
                         self.setInstalledVersion(line, currentVersion)
                 else:
-                    self.addtext('Up to date: ' + addonName + ' version ' + currentVersion)
+                    self.addText('Up to date: ' + addonName + ' version ' + currentVersion)
                     current_node.append("Up to date")
                 uberlist.append(current_node)
         if self.USE_GUI:
-            self.addtext('\n' + 'All done!')
-            self.FINISHEDUPDATING = True
+            self.addText('\n' + 'All done!')
             return
         if self.AUTO_CLOSE == 'False':
             col_width = max(len(word) for row in uberlist for word in row) + 2  # padding
@@ -198,7 +244,7 @@ class AddonUpdater:
             z = zipfile.ZipFile(BytesIO(r.content))
             z.extractall(self.WOW_ADDON_LOCATION)
         except Exception:
-            self.addtext('Failed to download or extract zip file for addon. Skipping...\n')
+            self.addText('Failed to download or extract zip file for addon. Skipping...\n')
             return
 
     def getInstalledVersion(self, addonpage):

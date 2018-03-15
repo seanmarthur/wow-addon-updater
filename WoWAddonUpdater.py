@@ -211,13 +211,13 @@ class AddonUpdater:
                     # The GUI thread has asked the update thread to stop.
                     self.addText("Cancelled.")
                     return
+                addonName = SiteHandler.getAddonName(line)
                 currentVersion = SiteHandler.getCurrentVersion(line)
                 if currentVersion is None:
                     currentVersion = 'Not Available'
-                current_node.append(line.split("/")[-1])
-                current_node.append(SiteHandler.getCurrentVersion(line))
+                current_node.append(addonName)
+                current_node.append(currentVersion)
                 installedVersion = self.getInstalledVersion(line)
-                addonName = line.split("/")[-1]
                 self.addProgress()
                 if self.USE_GUI and self.ABORT.is_set():
                     # The GUI thread has asked the update thread to stop.
@@ -226,9 +226,10 @@ class AddonUpdater:
                 if not currentVersion == installedVersion:
                     self.addText('Installing/updating addon: ' + addonName + ' to version: ' + currentVersion)
                     ziploc = SiteHandler.findZiploc(line)
-                    self.getAddon(ziploc)
+                    install_success = False
+                    install_success = self.getAddon(ziploc)
                     current_node.append(self.getInstalledVersion(line))
-                    if currentVersion is not '':
+                    if install_success is True and currentVersion is not '':
                         self.setInstalledVersion(line, currentVersion)
                 else:
                     self.addText('Up to date: ' + addonName + ' version ' + currentVersion)
@@ -246,20 +247,18 @@ class AddonUpdater:
 
     def getAddon(self, ziploc):
         if ziploc == '':
-            return
+            return False
         try:
             r = requests.get(ziploc, stream=True)
             z = zipfile.ZipFile(BytesIO(r.content))
             z.extractall(self.WOW_ADDON_LOCATION)
+            return True
         except Exception:
             self.addText('Failed to download or extract zip file for addon. Skipping...\n')
-            return
+            return False
 
     def getInstalledVersion(self, addonpage):
-        addonName = addonpage.replace('https://mods.curse.com/addons/wow/', '')
-        addonName = addonName.replace('https://www.curseforge.com/wow/addons/', '')
-        addonName = addonName.replace('https://wow.curseforge.com/projects/', '')
-        addonName = addonName.replace('http://www.wowinterface.com/downloads/', '')
+        addonName = SiteHandler.getAddonName(addonpage)
         installedVers = configparser.ConfigParser()
         installedVers.read(self.INSTALLED_VERS_FILE)
         try:
@@ -268,10 +267,7 @@ class AddonUpdater:
             return 'version not found'
 
     def setInstalledVersion(self, addonpage, currentVersion):
-        addonName = addonpage.replace('https://mods.curse.com/addons/wow/', '')
-        addonName = addonName.replace('https://www.curseforge.com/wow/addons/', '')
-        addonName = addonName.replace('https://wow.curseforge.com/projects/', '')
-        addonName = addonName.replace('http://www.wowinterface.com/downloads/', '')
+        addonName = SiteHandler.getAddonName(addonpage)
         installedVers = configparser.ConfigParser()
         installedVers.read(self.INSTALLED_VERS_FILE)
         installedVers.set('Installed Versions', addonName, currentVersion)

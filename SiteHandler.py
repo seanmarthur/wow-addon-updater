@@ -12,8 +12,12 @@ def findZiploc(addonpage):
 
     # Curse Project
     elif addonpage.startswith('https://wow.curseforge.com/projects/'):
-        return curseProject(addonpage)
-		
+        if addonpage.endswith('/files'):
+            # Remove /files from the end of the URL, since it gets added later
+            return curseProject(addonpage[:-6])
+        else:
+            return curseProject(addonpage)
+
     # Tukui
     elif addonpage.startswith('http://git.tukui.org/'):
         return tukui(addonpage)
@@ -37,7 +41,7 @@ def getCurrentVersion(addonpage):
     # Curse Project
     elif addonpage.startswith('https://wow.curseforge.com/projects/'):
         return getCurseProjectVersion(addonpage)
-		
+
     # Tukui
     elif addonpage.startswith('http://git.tukui.org/'):
         return getTukuiVersion(addonpage)
@@ -49,6 +53,17 @@ def getCurrentVersion(addonpage):
     # Invalid page
     else:
         print('Invalid addon page.')
+
+
+def getAddonName(addonpage):
+    # Might actually read names from web pages later
+    addonName = addonpage.replace('https://mods.curse.com/addons/wow/', '')
+    addonName = addonName.replace('https://www.curseforge.com/wow/addons/', '')
+    addonName = addonName.replace('https://wow.curseforge.com/projects/', '')
+    addonName = addonName.replace('http://www.wowinterface.com/downloads/', '')
+    if addonName.endswith('/files'):
+        addonName = addonName[:-6]
+    return addonName
 
 
 # Curse
@@ -79,7 +94,8 @@ def curseDatastore(addonpage):
         page = requests.get(projectPage)
         projectPage = page.url  # We might get redirected, need to know where we ended up.
         contentString = str(page.content)
-        indexOfZiploc = contentString.find('<a class="button tip fa-icon-download icon-only" href="/') + 55
+        startOfTable = contentString.find('project-file-name-container')
+        indexOfZiploc = contentString.find('<a class="button tip fa-icon-download icon-only" href="/', startOfTable) + 55
         endOfZiploc = contentString.find('"', indexOfZiploc)
 
         # Add on the first part of the project page URL to get a complete URL
@@ -118,7 +134,6 @@ def getCurseVersion(addonpage):
         print('Failed to find version number for: ' + addonpage)
         return ''
 
-
 def getCurseDatastoreVersion(addonpage):
     try:
         # First, look for the URL of the project file page
@@ -126,14 +141,10 @@ def getCurseDatastoreVersion(addonpage):
         contentString = str(page.content)
         endOfProjectPageURL = contentString.find('">Visit Project Page')
         indexOfProjectPageURL = contentString.rfind('<a href="', 0, endOfProjectPageURL) + 9
-        projectPage = contentString[indexOfProjectPageURL:endOfProjectPageURL] + '/files'
+        projectPage = contentString[indexOfProjectPageURL:endOfProjectPageURL]
 
-        # Then get the project page and get the version of the first (most recent) file
-        page = requests.get(projectPage)
-        contentString = str(page.content)
-        indexOfVer = contentString.find('data-name="') + 11
-        endOfVer = contentString.find('"', indexOfVer)
-        return contentString[indexOfVer:endOfVer].strip()
+        # Now just call getCurseProjectVersion with the URL we found
+        return getCurseProjectVersion(projectPage)
     except Exception:
         print('Failed to find alpha version number for: ' + addonpage)
 
@@ -152,7 +163,8 @@ def getCurseProjectVersion(addonpage):
     try:
         page = requests.get(addonpage + '/files')
         contentString = str(page.content)
-        indexOfVer = contentString.find('data-name') + 11  # first char of the version string
+        startOfTable = contentString.find('project-file-list-item')
+        indexOfVer = contentString.find('data-name="', startOfTable) + 11  # first char of the version string
         endTag = contentString.find('">', indexOfVer)  # ending tag after the version string
         return contentString[indexOfVer:endTag].strip()
     except Exception:

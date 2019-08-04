@@ -1,9 +1,11 @@
 # Addon input file
+addons.txt
 in.txt
 installed.txt
 
 # Settings for IntelliJ
 .idea/
+venv/
 
 # Compiled pyc files
 __pycache__/

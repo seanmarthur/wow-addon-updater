@@ -21,9 +21,9 @@ Thanks to https://github.com/Saritus, the requests module is now included in the
 
 The "config.ini" file is used by the utility to find where to install the addons to, and where to get the list of mods from.
 
-The default location to install the addons to is "C:\Program Files (x86)\World of Warcraft\Interface\AddOns". If this is not the location where you have World of Warcraft installed, you will need to edit "config.ini" to point to your addons folder.
+The default location to install the addons to is "D:\Jeux\World of Warcraft\_retail_\Interface\AddOns". If this is not the location where you have World of Warcraft installed, you will need to edit "config.ini" to point to your addons folder.
 
-The default location of the addon list file is simply "in.txt", but this file will not exist on your PC, so you should either create "in.txt" in the same location as the utility, or name the file something else and edit "config.ini" to point to the new file.
+The default location of the addon list file is simply "addons.txt", but this file will not exist on your PC, so you should either create "addons.txt" in the same location as the utility, or name the file something else and edit "config.ini" to point to the new file.
 
 The "config.ini" file also has two other properties that you may not need to change. "Installed Versions File" determines where to store the file that keeps track of the current versions of your addons, and I don't recommend changing that.
 
@@ -74,12 +74,11 @@ Have any questions, concerns, issues, or suggestions for the utility? Feel free 
 
 * Make a video guide detailing all the above information
 
-* Update to use a visual interface instead of a command-line interface
+* Update to the visual interface  - The actual UI is very barebone
+    - Implement the ability to add a addon
+    - General redesign
+    - Logo
 
-* ~~Add version checking to eliminate reinstalls of the current versions of addons~~ Thanks to https://github.com/zurohki for the code to implement this, and to https://github.com/Saritus for integrating it into the current codebase! You will now see reduced data usage of the app, and quicker update times!
 
-* ~~Make the code structure not suck. No, seriously... it's bad...~~ Thanks to https://github.com/Saritus for the refactoring!
-
-* ~~Add support for more addon providers (namely WoWInterface)~~ Thanks to https://github.com/Saritus for the WoWInterface support!
 
 Thanks for checking this out; hopefully it helps a lot of you :)

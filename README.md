@@ -4,6 +4,9 @@ This utility provides an alternative to the Twitch/Curse client for management a
 
 Changelog located in changelog.txt
 
+## GUI
+This version of wow-addon-updater use the primitive GUI from zurohki, if you don't want it to boot, change the config file "Use GUI" to False.
+
 ## First-time setup
 
 This utility has two dependencies:

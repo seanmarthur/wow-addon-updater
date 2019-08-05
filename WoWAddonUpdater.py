@@ -223,7 +223,7 @@ class AddonUpdater:
                     currentVersion = 'Not Available'
                 current_node.append(addonName)
                 current_node.append(currentVersion)
-                installedVersion = self.getInstalledVersion(line)
+                installedVersion = self.getInstalledVersion(line,subfolder)
                 self.addProgress()
                 if self.USE_GUI and self.ABORT.is_set():
                     # The GUI thread has asked the update thread to stop.

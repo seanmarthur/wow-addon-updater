@@ -30,6 +30,10 @@ def findZiploc(addonpage):
     elif addonpage.startswith('https://git.tukui.org/'):
         return tukui(addonpage)
 
+    # New Tukui
+    elif addonpage.startswith('https://www.tukui.org/'):
+        return newTukui(addonpage)
+
     # Wowinterface
     elif addonpage.startswith('http://www.wowinterface.com/'):
         return wowinterface(addonpage)
@@ -58,6 +62,10 @@ def getCurrentVersion(addonpage):
     elif addonpage.startswith('https://git.tukui.org/'):
         return getTukuiVersion(addonpage)
 
+    # NewTukui
+    elif addonpage.startswith('https://www.tukui.org/'):
+        return getNewTukuiVersion(addonpage)
+
     # Wowinterface
     elif addonpage.startswith('http://www.wowinterface.com/'):
         return getWowinterfaceVersion(addonpage)
@@ -74,6 +82,10 @@ def getAddonName(addonpage):
     addonName = addonName.replace('http://www.wowinterface.com/downloads/', '')
     addonName = addonName.replace('https://www.wowace.com/projects/', '')
     addonName = addonName.replace('https://git.tukui.org/', '')
+    if addonName.lower().find('+tukui') != -1:
+        addonName = 'TukUI'
+    if addonName.lower().find('+elvui') != -1:
+        addonName = 'ElvUI'
     if addonName.endswith('/files'):
         addonName = addonName[:-6]
     return addonName
@@ -252,6 +264,43 @@ def getTukuiVersion(addonpage):
         print(err)
         return ''
 
+# New TukUI implemntation
+
+def newTukui(addonpage):
+    try:
+        if '+' in addonpage: # Expected input format: "https://www.tukui.org+tukui"
+            complement = addonpage.split('+')[1]
+            addonpage = addonpage.split('+')[0]
+        else:
+            print('Failed to find a specific addon to get for elvui. Skipping...\n')
+            return ''
+        page = requests.get(addonpage+'download.php?ui='+complement.lower())
+        page.raise_for_status()   # Raise an exception for HTTP errors
+        contentString = str(page.content)
+        indexOfZiploc = contentString.find('<a href="/downloads/') + 9  # Will be the index of the first char of the url
+        endQuote = contentString.find('"', indexOfZiploc)  # Will be the index of the ending quote after the url
+        return 'https://www.tukui.org' + contentString[indexOfZiploc:endQuote]
+    except Exception:
+        print('Failed to find downloadable zip file for addon. Skipping...\n')
+        return ''
+
+def getNewTukuiVersion(addonpage):
+    try:
+        if '+' in addonpage: # Expected input format: "https://www.tukui.org+tukui"
+            complement = addonpage.split('+')[1]
+            addonpage = addonpage.split('+')[0]
+        else:
+            print('Failed to find a specific addon to get for elvui. Skipping...\n')
+            return ''
+        page = requests.get(addonpage+'download.php?ui='+complement.lower())
+        page.raise_for_status()   # Raise an exception for HTTP errors
+        contentString = str(page.content)
+        indexOfZiploc = contentString.find('is <b class="Premium">') + 22  # Will be the index of the first char of the url
+        endQuote = contentString.find('</b>', indexOfZiploc)  # Will be the index of the ending quote after the url
+        return contentString[indexOfZiploc:endQuote]
+    except Exception:
+        print('Failed to find version number for: ' + addonpage)
+        return ''
 
 # Wowinterface
 

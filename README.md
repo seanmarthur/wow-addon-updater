@@ -41,9 +41,12 @@ Whatever file you use for your list of mods needs to be formatted in a particula
     
 Each link needs to be the main page for the addon, as shown above.
 
-If you want to extract a subfolder from the default downloaded folder (typically needed with Tukui addons), add a pipe character (|) and the name of the subfolder at the end of the line. For example, the ElvUI addon can be added as follows:
+There is a special syntax for TukUI & ElvUI mods should be added to the list like :
 
-    https://git.tukui.org/elvui/elvui|ElvUI
+    https://www.tukui.org/+tukui
+    https://www.tukui.org/+elvui
+
+Example show both, use one or the other (or both I don't judge).
 
 because the downloadable zip from this website contains a subfolder called "ElvUI" containing the actual mod.
 

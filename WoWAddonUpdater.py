@@ -21,38 +21,38 @@ def confirmExit():
 class AddonUpdater:
     def __init__(self):
         # Read config file
-        config = configparser.ConfigParser()
+        self.config = configparser.ConfigParser()
         configFile = 'config.ini'
 
         if isfile(configFile):
-            config.read(configFile)
+            self.config.read(configFile)
         elif isfile(join(dirname(__file__), configFile)):
             # Couldn't find configFile in the current directory, but found it in the script's directory.
             chdir(dirname(__file__))
-            config.read(configFile)
+            self.config.read(configFile)
         else:
             print('Failed to read configuration file. Are you sure there is a file called "config.ini"?\n')
             confirmExit()
 
         try:
-            self.WOW_ADDON_LOCATION = config['WOW ADDON UPDATER']['WoW Addon Location']
-            self.ADDON_LIST_FILE = config['WOW ADDON UPDATER']['Addon List File']
-            self.INSTALLED_VERS_FILE = config['WOW ADDON UPDATER']['Installed Versions File']
-            self.AUTO_CLOSE = config['WOW ADDON UPDATER']['Close Automatically When Completed']
+            self.WOW_ADDON_LOCATION = self.config['WOW ADDON UPDATER']['WoW Addon Location']
+            self.ADDON_LIST_FILE = self.config['WOW ADDON UPDATER']['Addon List File']
+            self.INSTALLED_VERS_FILE = self.config['WOW ADDON UPDATER']['Installed Versions File']
+            self.AUTO_CLOSE = self.config['WOW ADDON UPDATER']['Close Automatically When Completed']
         except Exception:
             print('Failed to parse configuration file. Are you sure it is formatted correctly?\n')
             confirmExit()
 
         # Add "Use GUI = true" to the config file if the option is missing.
         try:
-            useguivalue = config['WOW ADDON UPDATER']['Use GUI']
+            useguivalue = self.config['WOW ADDON UPDATER']['Use GUI']
             if str.lower(useguivalue) in ["yes", "true", "1", "on"]:
                 self.USE_GUI = True
             else:
                 self.USE_GUI = False
         except KeyError:
             self.USE_GUI = True
-            config['WOW ADDON UPDATER']['Use GUI'] = "True"
+            self.config['WOW ADDON UPDATER']['Use GUI'] = "True"
 
         if not isfile(self.ADDON_LIST_FILE):
             print('Failed to read addon list file. Are you sure the file exists?\n')
@@ -112,11 +112,13 @@ class AddonUpdater:
 
         self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating, state=DISABLED)
         self.cancelbutton.grid(column=0, row=3)
+        self.configButton = Button(mainframe, text="Configure", command=self.editConfig)
+        self.configButton.grid(column=1, row=3)
         self.startbutton = Button(mainframe, text="Start", command=self.startUpdating)
         self.startbutton.grid(column=2, row=3)
 
         for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
-        self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')
+        self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an addons.txt file, click Start to begin.' + '\n')
         self.updateGUI()
 
     def updateGUI(self):
@@ -198,6 +200,51 @@ class AddonUpdater:
         except AttributeError:
             self.addText("Update doesn't seem to be running.")
 
+
+    def editConfig(self):
+        configWindow = Toplevel(self.root)
+        configWindow.wm_title("Configuration")
+
+        # Declaring the properties we can edit
+        configPath = StringVar()
+        Label(configWindow, text="Add on path :").grid(row=1,column=0)
+
+        def exitAction():
+            configWindow.destroy()
+            configWindow.update()
+
+        def saveChanges():
+            self.WOW_ADDON_LOCATION = configPath.get()
+            self.config['WOW ADDON UPDATER']['WoW Addon Location'] = self.WOW_ADDON_LOCATION
+            # TODO Add verification to check if the folder exist
+            with open("config.ini", "w+") as configfile:
+                self.config.write(configfile)
+            exitAction()
+
+        configWindow.applybutton = Button(configWindow, text="Apply", command=saveChanges, state=DISABLED)
+        configWindow.cancelbutton = Button(configWindow, text="Cancel", command=exitAction)
+
+        configPathField = Entry(configWindow, textvariable=configPath, width=60)
+        configPath.set(self.WOW_ADDON_LOCATION)
+        configPath.trace("w",lambda name, index, mode, sv=configPath: configWindow.applybutton.config(state="normal"))
+
+        configPathField.grid(row=1,column=1)
+
+        # Buttons are always at the bottom of the window
+        col_count, row_count = configWindow.grid_size()
+        configWindow.cancelbutton.grid(row=col_count+1,column=1)
+        configWindow.applybutton.grid(row=col_count+1,column=2)
+
+
+        col_count, row_count = configWindow.grid_size()
+        configWindow.minsize(50, row_count*20+10)
+
+        for col in range(col_count):
+            configWindow.grid_columnconfigure(col, minsize=20)
+
+        for row in range(row_count):
+            configWindow.grid_rowconfigure(row, minsize=20)
+
     def update(self):
         uberlist = []
         with open(self.ADDON_LIST_FILE, "r") as fin:
@@ -245,11 +292,14 @@ class AddonUpdater:
             self.addText('\n' + 'All done!')
             return
         if self.AUTO_CLOSE == 'False':
-            col_width = max(len(word) for row in uberlist for word in row) + 2  # padding
-            print("".join(word.ljust(col_width) for word in ("Name","Iversion","Cversion")))
-            for row in uberlist:
-                print("".join(word.ljust(col_width) for word in row), end='\n')
-            confirmExit()
+            if len(uberlist) != 0:
+                col_width = max(len(word) for row in uberlist for word in row) + 2  # padding
+                print("".join(word.ljust(col_width) for word in ("Name","Iversion","Cversion")))
+                for row in uberlist:
+                    print("".join(word.ljust(col_width) for word in row), end='\n')
+                confirmExit()
+            else:
+                print("AddOns list empty.")
 
     def getAddon(self, ziploc, subfolder):
         if ziploc == '':

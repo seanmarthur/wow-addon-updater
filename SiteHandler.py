@@ -1,14 +1,6 @@
 import packages.requests as requests
 import re
 
-# Utility
-def find_nth(string, substring, n):
-    if (n == 1):
-        return string.find(substring)
-    else:
-        return string.find(substring, find_nth(string, substring, n - 1) + 1)
-
-
 # Site splitter
 
 def findZiploc(addonpage):

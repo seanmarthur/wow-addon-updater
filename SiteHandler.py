@@ -38,6 +38,10 @@ def findZiploc(addonpage):
     elif addonpage.startswith('https://www.wowinterface.com/'):
         return wowinterface(addonpage)
 
+    # github
+    elif addonpage.startswith('https://github.com/'):
+        return github(addonpage)
+
     # Invalid page
     else:
         print('Invalid addon page.')
@@ -70,13 +74,17 @@ def getCurrentVersion(addonpage):
     elif addonpage.startswith('https://www.wowinterface.com/'):
         return getWowinterfaceVersion(addonpage)
 
+    # github
+    elif addonpage.startswith('https://github.com/'):
+        return getGithubVersion(addonpage)
+
     # Invalid page
     else:
         print('Invalid addon page.')
 
 
-def getAddonName(addonpage):
-    addonName = addonpage.replace('https://mods.curse.com/addons/wow/', '')
+def getAddonName(addonPage):
+    addonName = addonPage.replace('https://mods.curse.com/addons/wow/', '')
     addonName = addonName.replace('https://www.curseforge.com/wow/addons/', '')
     addonName = addonName.replace('https://wow.curseforge.com/projects/', '')
     addonName = addonName.replace('https://www.wowinterface.com/downloads/', '')
@@ -88,6 +96,8 @@ def getAddonName(addonpage):
         addonName = 'ElvUI'
     if addonName.endswith('/files'):
         addonName = addonName[:-6]
+    if addonPage.startswith('https://github.com/'):
+        addonName = addonPage.split('/')[-1] # github project name
     return addonName
 
 
@@ -335,6 +345,29 @@ def getWowinterfaceVersion(addonpage):
         contentString = str(page.content)
         indexOfVer = contentString.find('id="version"') + 22  # first char of the version string
         endTag = contentString.find('</div>', indexOfVer)  # ending tag after the version string
+        return contentString[indexOfVer:endTag].strip()
+    except Exception:
+        print('Failed to find version number for: ' + addonpage)
+        return ''
+
+# github
+
+def github(addonpage, branch='master'):
+    try:
+        return addonpage + '/archive' + '/' + branch + '.zip'
+    except Exception:
+        print('Failed to find downloadable zip file for addon. Skipping...\n')
+        return ''
+
+def getGithubVersion(addonpage):
+    try:
+        page = requests.get(addonpage)
+        page.raise_for_status()   # Raise an exception for HTTP errors
+        contentString = str(page.content)
+        contentString = contentString.replace('\\n', '').replace('\\r', '')
+        indexOfCommit = contentString.find('commit-tease-sha') # index of wrapping <a> for latest commit id
+        indexOfVer = contentString.find('>', indexOfCommit) + 1  # find end of tag
+        endTag = contentString.find('</a>', indexOfVer)  # ending tag
         return contentString[indexOfVer:endTag].strip()
     except Exception:
         print('Failed to find version number for: ' + addonpage)

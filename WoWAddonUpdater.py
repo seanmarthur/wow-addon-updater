@@ -1,5 +1,6 @@
-import zipfile, configparser
-from os.path import isfile, join, dirname
+import zipfile
+import configparser
+from os.path import isfile, join, dirname, exists
 from os import chdir, listdir
 from io import BytesIO
 import shutil
@@ -31,7 +32,8 @@ class AddonUpdater:
             chdir(dirname(__file__))
             config.read(configFile)
         else:
-            print('Failed to read configuration file. Are you sure there is a file called "config.ini"?\n')
+            print(
+                'Failed to read configuration file. Are you sure there is a file called "config.ini"?\n')
             confirmExit()
 
         try:
@@ -40,7 +42,8 @@ class AddonUpdater:
             self.INSTALLED_VERS_FILE = config['WOW ADDON UPDATER']['Installed Versions File']
             self.AUTO_CLOSE = config['WOW ADDON UPDATER']['Close Automatically When Completed']
         except Exception:
-            print('Failed to parse configuration file. Are you sure it is formatted correctly?\n')
+            print(
+                'Failed to parse configuration file. Are you sure it is formatted correctly?\n')
             confirmExit()
 
         # Add "Use GUI = true" to the config file if the option is missing.
@@ -87,22 +90,25 @@ class AddonUpdater:
         mainframe.columnconfigure(2, weight=1)
         mainframe.rowconfigure(3, weight=0)
 
-        Sizegrip(root).grid(row=0, sticky=(S,E))
+        Sizegrip(root).grid(row=0, sticky=(S, E))
 
-        Label(mainframe, text="WoW Addon Updater", font=("Helvetica", 20)).grid(column=0, row=0, sticky=(N), columnspan=3)
+        Label(mainframe, text="WoW Addon Updater", font=("Helvetica", 20)).grid(
+            column=0, row=0, sticky=(N), columnspan=3)
 
-        output_text = scrolledtext.ScrolledText(mainframe, width=110, height=20, wrap=WORD)
-        output_text.grid(column=0, row=1, sticky=(N,S,E,W), columnspan=3)
+        output_text = scrolledtext.ScrolledText(
+            mainframe, width=110, height=20, wrap=WORD)
+        output_text.grid(column=0, row=1, sticky=(N, S, E, W), columnspan=3)
 
-        progressbar = Progressbar(mainframe, orient="horizontal", mode="determinate")
-        progressbar.grid(column=0, row=2, sticky=(E,W), columnspan=3)
+        progressbar = Progressbar(
+            mainframe, orient="horizontal", mode="determinate")
+        progressbar.grid(column=0, row=2, sticky=(E, W), columnspan=3)
         with open(self.ADDON_LIST_FILE, "r") as fin:
             length = 0
             for line in fin:
                 line = line.strip()
                 if line and not line.startswith('#'):
                     length += 1
-            progressbar.configure(value=0, maximum = length)
+            progressbar.configure(value=0, maximum=length)
 
         self.root = root
         self.output_text = output_text
@@ -110,13 +116,17 @@ class AddonUpdater:
         self.ABORT = threading.Event()
         root.protocol("WM_DELETE_WINDOW", self.shutdownGUI)
 
-        self.cancelbutton = Button(mainframe, text="Cancel", command=self.abortUpdating, state=DISABLED)
+        self.cancelbutton = Button(
+            mainframe, text="Cancel", command=self.abortUpdating, state=DISABLED)
         self.cancelbutton.grid(column=0, row=3)
-        self.startbutton = Button(mainframe, text="Start", command=self.startUpdating)
+        self.startbutton = Button(
+            mainframe, text="Start", command=self.startUpdating)
         self.startbutton.grid(column=2, row=3)
 
-        for child in mainframe.winfo_children(): child.grid_configure(padx=5, pady=5)
-        self.output_text.insert(END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')
+        for child in mainframe.winfo_children():
+            child.grid_configure(padx=5, pady=5)
+        self.output_text.insert(
+            END, 'Welcome to WoW Addon Updater. If you\'ve already made an in.txt file, click Start to begin.' + '\n')
         self.updateGUI()
 
     def updateGUI(self):
@@ -128,7 +138,7 @@ class AddonUpdater:
         except queue.Empty:
             pass
         try:
-            progress = self.progressqueue.get_nowait()
+            # progress = self.progressqueue.get_nowait()
             self.progressbar.step()
         except queue.Empty:
             pass
@@ -205,20 +215,53 @@ class AddonUpdater:
             if self.USE_GUI:
                 self.addText('Checking for updates.' + '\n')
             for line in fin:
-                self.threads.append(threading.Thread(target=self.update_addon, args=(line, uberlist)))
-
-        for thread in self.threads:
-            thread.start()
-
-        for thread in self.threads:
-            thread.join()
-
+                current_node = []
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                if self.USE_GUI and self.ABORT.is_set():
+                    # The GUI thread has asked the update thread to stop.
+                    self.addText("Cancelled.")
+                    return
+                if '|' in line:  # Expected input format: "mydomain.com/myzip.zip" or "mydomain.com/myzip.zip|subfolder"
+                    subfolder = line.split('|')[1]
+                    line = line.split('|')[0]
+                else:
+                    subfolder = ''
+                addonName = SiteHandler.getAddonName(line)
+                currentVersion = SiteHandler.getCurrentVersion(line)
+                if currentVersion is None:
+                    currentVersion = 'Not Available'
+                current_node.append(addonName)
+                current_node.append(currentVersion)
+                installedVersion = self.getInstalledVersion(line)
+                self.addProgress()
+                if self.USE_GUI and self.ABORT.is_set():
+                    # The GUI thread has asked the update thread to stop.
+                    self.addText("Cancelled.")
+                    return
+                if not currentVersion == installedVersion:
+                    self.addText('Installing/updating addon: ' +
+                                 addonName + ' to version: ' + currentVersion)
+                    ziploc = SiteHandler.findZiploc(line)
+                    install_success = False
+                    install_success = self.getAddon(ziploc, subfolder)
+                    current_node.append(self.getInstalledVersion(line))
+                    if install_success is True and currentVersion is not '':
+                        self.setInstalledVersion(line, currentVersion)
+                else:
+                    self.addText('Up to date: ' + addonName +
+                                 ' version ' + currentVersion)
+                    current_node.append("Up to date")
+                uberlist.append(current_node)
         if self.USE_GUI:
             self.addText('\n' + 'All done!')
             return
         if self.AUTO_CLOSE == 'False':
-            col_width = max(len(word) for row in uberlist for word in row) + 2  # padding
-            print("".join(word.ljust(col_width) for word in ("Name","Iversion","Cversion")))
+            col_width = max(len(word)
+                            for row in uberlist for word in row) + 2  # padding
+            print("".join(word.ljust(col_width)
+                          for word in ("Name", "Iversion", "Cversion")))
             for row in uberlist:
                 print("".join(word.ljust(col_width) for word in row), end='\n')
             confirmExit()
@@ -232,7 +275,7 @@ class AddonUpdater:
             # The GUI thread has asked the update thread to stop.
             self.addText("Cancelled.")
             return
-        if '|' in addon: # Expected input format: "mydomain.com/myzip.zip" or "mydomain.com/myzip.zip|subfolder"
+        if '|' in addon:  # Expected input format: "mydomain.com/myzip.zip" or "mydomain.com/myzip.zip|subfolder"
             subfolder = addon.split('|')[1]
             addon = addon.split('|')[0]
         else:
@@ -243,22 +286,24 @@ class AddonUpdater:
             currentVersion = 'Not Available'
         current_node.append(addonName)
         current_node.append(currentVersion)
-        installedVersion = self.getInstalledVersion(addon,subfolder)
+        installedVersion = self.getInstalledVersion(addon, subfolder)
         self.addProgress()
         if self.USE_GUI and self.ABORT.is_set():
             # The GUI thread has asked the update thread to stop.
             self.addText("Cancelled.")
             return
         if not currentVersion == installedVersion:
-            self.addText('Installing/updating addon: ' + addonName + ' to version: ' + currentVersion)
+            self.addText('Installing/updating addon: ' +
+                         addonName + ' to version: ' + currentVersion)
             ziploc = SiteHandler.findZiploc(addon)
             install_success = False
             install_success = self.getAddon(ziploc, subfolder)
             current_node.append(self.getInstalledVersion(addon, subfolder))
             if install_success and (currentVersion is not ''):
-                self.setInstalledVersion(addon, subfolder, currentVersion)
+                self.setInstalledVersion(addon, currentVersion, subfolder)
         else:
-            self.addText('Up to date: ' + addonName + ' version ' + currentVersion)
+            self.addText('Up to date: ' + addonName +
+                         ' version ' + currentVersion)
             current_node.append("Up to date")
         uberlist.append(current_node)
 
@@ -272,44 +317,55 @@ class AddonUpdater:
             self.extract(z, ziploc, subfolder)
             return True
         except Exception:
-            self.addText('Failed to download or extract zip file for addon. Skipping...\n')
+            self.addText(
+                'Failed to download or extract zip file for addon. Skipping...\n')
             return False
 
     def extract(self, zip, url, subfolder):
         if subfolder == '':
             zip.extractall(self.WOW_ADDON_LOCATION)
-        else: # Pull subfolder out to main level, remove original extracted folder
+        else:  # Pull subfolder out to main level, remove original extracted folder
             try:
                 with tempfile.TemporaryDirectory() as tempDirPath:
                     zip.extractall(tempDirPath)
-                    extractedFolderPath = join(tempDirPath, listdir(tempDirPath)[0])
+                    extractedFolderPath = join(
+                        tempDirPath, listdir(tempDirPath)[0])
                     subfolderPath = join(extractedFolderPath, subfolder)
+                    # if a subfolder exists, extract the addon into it
                     destination_dir = join(self.WOW_ADDON_LOCATION, subfolder)
                     # Delete the existing copy, as shutil.copytree will not work if
                     # the destination directory already exists!
                     shutil.rmtree(destination_dir, ignore_errors=True)
-                    shutil.copytree(subfolderPath, destination_dir)
+                    # if the subfolder exists in the extracted directory, copy it to the destination
+                    if exists(subfolderPath):
+                        shutil.copytree(subfolderPath, destination_dir)
+                    # otherwise, if the extracted directory exists (no subfolder) - copy that one
+                    elif exists(extractedFolderPath):
+                        shutil.copytree(extractedFolderPath, destination_dir)
             except Exception:
                 print('Failed to get subfolder ' + subfolder)
 
-    def getInstalledVersion(self, addonpage, subfolder):
+    def getInstalledVersion(self, addonpage, subfolder=None):
         addonName = SiteHandler.getAddonName(addonpage)
         installedVers = configparser.ConfigParser()
         installedVers.read(self.INSTALLED_VERS_FILE)
         try:
             if(subfolder):
-                return installedVers['Installed Versions'][addonName + '|' + subfolder] # Keep subfolder info in installed listing
+                # Keep subfolder info in installed listing
+                return installedVers['Installed Versions'][addonName + '|' + subfolder]
             else:
                 return installedVers['Installed Versions'][addonName]
         except Exception:
             return 'version not found'
 
-    def setInstalledVersion(self, addonpage, subfolder, currentVersion):
+    def setInstalledVersion(self, addonpage, currentVersion, subfolder=None):
         addonName = SiteHandler.getAddonName(addonpage)
         installedVers = configparser.ConfigParser()
         installedVers.read(self.INSTALLED_VERS_FILE)
         if(subfolder):
-            installedVers.set('Installed Versions', addonName + '|' + subfolder, currentVersion) # Keep subfolder info in installed listing
+            # Keep subfolder info in installed listing
+            installedVers.set('Installed Versions', addonName +
+                              '|' + subfolder, currentVersion)
         else:
             installedVers.set('Installed Versions', addonName, currentVersion)
         with open(self.INSTALLED_VERS_FILE, 'w') as installedVersFile:
@@ -318,7 +374,8 @@ class AddonUpdater:
 
 def main():
     if(isfile('changelog.txt')):
-        downloadedChangelog = requests.get('https://raw.githubusercontent.com/kuhnerdm/wow-addon-updater/master/changelog.txt').text.split('\n')
+        downloadedChangelog = requests.get(
+            'https://raw.githubusercontent.com/kuhnerdm/wow-addon-updater/master/changelog.txt').text.split('\n')
         with open('changelog.txt') as cl:
             presentChangelog = cl.readlines()
             for i in range(len(presentChangelog)):
@@ -326,7 +383,7 @@ def main():
 
     if(downloadedChangelog != presentChangelog):
         print('A new update to WoWAddonUpdater is available! Check it out at https://github.com/kuhnerdm/wow-addon-updater !')
-    
+
     addonupdater = AddonUpdater()
     if addonupdater.USE_GUI:
         addonupdater.root.mainloop()

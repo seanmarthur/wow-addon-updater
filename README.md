@@ -58,6 +58,7 @@ There is no 'standard' for raw source code of addons in github repositories, so 
 * addon in a folder with the same name as the addon (i.e. the *.toc file is in a subfolder of the same name)
 
 You **must** use the subfolder syntax for addons installed from github, like:
+
     https://github.com/cannonpalms/FasterLooting|FasterLooting
     https://github.com/Aviana/LunaUnitFrames|LunaUnitFrames
 

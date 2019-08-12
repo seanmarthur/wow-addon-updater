@@ -1,5 +1,8 @@
 # Addon input file
+in.txt
 addons.txt
+addons-classic.txt
+addons-retail.txt
 installed.txt
 
 # Settings for IntelliJ
@@ -10,3 +13,4 @@ venv/
 __pycache__/
 .vscode/
 desktop.ini
+

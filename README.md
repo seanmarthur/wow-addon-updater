@@ -50,6 +50,20 @@ Example show both, use one or the other (or both I don't judge).
 
 because the downloadable zip from this website contains a subfolder called "ElvUI" containing the actual mod.
 
+### Install from github
+
+There is no 'standard' for raw source code of addons in github repositories, so not all are guaranteed to work out of the box. We support these scenarios:
+
+* addon at the root of the repo (i.e. the *.toc file is at the root)
+* addon in a folder with the same name as the addon (i.e. the *.toc file is in a subfolder of the same name)
+
+You **must** use the subfolder syntax for addons installed from github, like:
+    https://github.com/cannonpalms/FasterLooting|FasterLooting
+    https://github.com/Aviana/LunaUnitFrames|LunaUnitFrames
+
+
+TODO: support installing from a named branch. Right now we assume the 'master' branch.
+
 ## macOS Installation Instructions - Thanks to https://github.com/melwan
 
 1. Install Python 3 for macOS
